@@ -1,5 +1,6 @@
 import {Timer, TimeUnit, RecordBreak} from '../types';
-import {differenceInMonths, differenceInCalendarMonths} from 'date-fns';
+import {differenceInCalendarMonths, addMonths} from 'date-fns';
+import {v4 as uuidv4} from 'uuid';
 
 export class TimerService {
   /**
@@ -22,8 +23,8 @@ export class TimerService {
       case 'weeks':
         return Math.floor(elapsed / (1000 * 60 * 60 * 24 * 7));
       case 'months':
-        // חישוב בקירוב של 30 יום לחודש
-        return Math.floor(elapsed / (1000 * 60 * 60 * 24 * 30));
+        // חישוב מדויק של חודשים בעזרת date-fns
+        return differenceInCalendarMonths(now, timer.startDate);
       default:
         return 0;
     }
@@ -56,7 +57,8 @@ export class TimerService {
    */
   static calculateCurrentStreak(timer: Timer): number {
     const referenceDate = timer.lastResetDate || timer.startDate;
-    const elapsed = Date.now() - referenceDate;
+    const now = Date.now();
+    const elapsed = now - referenceDate;
     
     // ממיר מילישניות ליחידת הזמן המבוקשת
     switch (timer.timeUnit) {
@@ -71,7 +73,8 @@ export class TimerService {
       case 'weeks':
         return Math.floor(elapsed / (1000 * 60 * 60 * 24 * 7));
       case 'months':
-        return Math.floor(elapsed / (1000 * 60 * 60 * 24 * 30));
+        // חישוב מדויק של חודשים בעזרת date-fns
+        return differenceInCalendarMonths(now, referenceDate);
       default:
         return 0;
     }
@@ -106,11 +109,12 @@ export class TimerService {
     if (currentStreak > timer.bestStreak) {
       // נשבר שיא!
       recordBreak = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        id: uuidv4(),
         timerId: timer.id,
         timestamp: Date.now(),
         oldRecord: timer.bestStreak,
         newRecord: currentStreak,
+        improvement: currentStreak - timer.bestStreak,
         isGlobalRecord: false,
       };
     }
@@ -135,32 +139,35 @@ export class TimerService {
     
     // מחשב מתי צריך להיות תאריך ההתחלה החדש
     const unitsToSubtract = timer.customResetAmount;
-    let millisecondsToSubtract = 0;
+    let newStartDate: number;
     
     switch (timer.timeUnit) {
       case 'seconds':
-        millisecondsToSubtract = unitsToSubtract * 1000;
+        newStartDate = timer.startDate + (unitsToSubtract * 1000);
         break;
       case 'minutes':
-        millisecondsToSubtract = unitsToSubtract * 1000 * 60;
+        newStartDate = timer.startDate + (unitsToSubtract * 1000 * 60);
         break;
       case 'hours':
-        millisecondsToSubtract = unitsToSubtract * 1000 * 60 * 60;
+        newStartDate = timer.startDate + (unitsToSubtract * 1000 * 60 * 60);
         break;
       case 'days':
-        millisecondsToSubtract = unitsToSubtract * 1000 * 60 * 60 * 24;
+        newStartDate = timer.startDate + (unitsToSubtract * 1000 * 60 * 60 * 24);
         break;
       case 'weeks':
-        millisecondsToSubtract = unitsToSubtract * 1000 * 60 * 60 * 24 * 7;
+        newStartDate = timer.startDate + (unitsToSubtract * 1000 * 60 * 60 * 24 * 7);
         break;
       case 'months':
-        millisecondsToSubtract = unitsToSubtract * 1000 * 60 * 60 * 24 * 30;
+        // חישוב מדויק של חודשים בעזרת date-fns
+        newStartDate = addMonths(timer.startDate, unitsToSubtract).getTime();
         break;
+      default:
+        newStartDate = timer.startDate;
     }
     
     const updatedTimer = {
       ...timer,
-      startDate: timer.startDate + millisecondsToSubtract,
+      startDate: newStartDate,
       currentValue: newValue,
       lastCalculated: Date.now(),
       currentStreak: 0, // מתאפס הסטריק הנוכחי
@@ -311,7 +318,7 @@ export class TimerService {
   ): Timer {
     const now = Date.now();
     return {
-      id: now.toString() + Math.random().toString(36).substr(2, 9),
+      id: uuidv4(),
       name,
       startDate: now,
       timeUnit,

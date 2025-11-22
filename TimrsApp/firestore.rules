@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // פונקציות עזר
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // כללי אבטחה עבור משתמשים
+    match /users/{userId} {
+      // המשתמש יכול לקרוא ולכתוב רק את הנתונים שלו
+      allow read, write: if isOwner(userId);
+      
+      // טיימרים
+      match /timers/{timerId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // סטטיסטיקות גלובליות
+      match /globalStats/{statsId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // טיימרים מחוקים
+      match /deletedTimers/{timerId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // לוגי איפוסים
+      match /resetLogs/{logId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // שבירות שיאים
+      match /recordBreaks/{recordId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // תור סנכרון (אם נשתמש בו)
+      match /syncQueue/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // מניעת גישה לכל מה שלא הוגדר מפורשות
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

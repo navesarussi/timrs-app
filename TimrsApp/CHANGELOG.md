@@ -2,6 +2,105 @@
 
 כל השינויים המשמעותיים בפרויקט Timrs יתועדו כאן.
 
+## [2.2.0] - 2024-11-22
+
+### 🐛 תיקוני באגים קריטיים
+
+#### ✅ תיקון בעיית crypto.getRandomValues
+- **הוספת react-native-get-random-values** - תיקון שגיאת UUID generation
+  - הוספת polyfill עבור crypto.getRandomValues ב-React Native
+  - ייבוא ראשוני ב-index.js לפני כל הקוד האחר
+  - פתרון שגיאות Promise rejection ברקע
+
+#### 🔧 תיקון באג סגירת חלון איפוס מותאם
+- **CustomResetDialog סוגר אוטומטית** - החלון נסגר כעת אחרי איפוס מותאם
+  - הוספת onClose() בסוף handleConfirm
+  - הסרת setShowResetDialog מ-TimerCard (החלון מנהל את עצמו)
+  - שיפור חווית משתמש
+
+#### 🧹 ניקוי קוד יסודי
+- **מחיקת ApiService** - הסרת קובץ שלא בשימוש עם 8 TODO items
+- **הסרת useEffect מיותר** - ניקוי בדיקת שבירת שיא שיצר memory leaks
+  - הוסר ה-useEffect שרץ בכל שינוי ב-currentStreak
+  - הבדיקה נעשית כעת רק בזמן איפוס מותאם
+  - הפחתת promises ברקע ושיפור ביצועים
+
+#### 🔍 תיקון שגיאות Linting
+- **ניקוי imports מיותרים** - הסרת useEffect ו-RecordBreak שלא בשימוש
+- **תיקון scope conflicts** - החלפת משתנים כפולים (currentValue/resetValue)
+- **אין שגיאות linting** - הקוד נקי לחלוטין
+
+### 📦 תלויות חדשות
+- `react-native-get-random-values` - polyfill עבור crypto ב-React Native
+
+### 💪 שיפורים נוספים
+- ניקוי console.log מיותרים
+- שיפור טיפול בשגיאות
+- אופטימיזציה של re-renders
+
+---
+
+## [2.1.0] - 2024-11-22
+
+### 🔧 שיפורים קריטיים ואופטימיזציות
+
+#### ✅ חישוב חודשים מדויק
+- **תיקון חישוב חודשים** - החלפת חישוב פשטני של 30 יום לחישוב מדויק עם `date-fns`
+  - שימוש ב-`differenceInCalendarMonths` לחישוב אמיתי של חודשים
+  - שימוש ב-`addMonths` לחישובי איפוס מותאם של חודשים
+  - תומך כעת בחודשים של 28, 29, 30 ו-31 ימים
+  - חבילה חדשה: `date-fns`
+
+#### 🔐 אבטחה משופרת
+- **החלפת ID Generation ב-UUID** - IDs בטוחים יותר עם `uuid`
+  - החלפת כל ייצור ה-IDs מ-`Date.now() + Math.random()` ל-`uuid v4`
+  - מניעת collisions במקרים נדירים
+  - תמיכה ב-IDs ייחודיים גלובליים
+  - חבילה חדשה: `uuid`, `@types/uuid`
+
+#### 🛡️ Firestore Security Rules
+- **הוספת Security Rules** - הגנה מלאה על נתונים ב-Firebase
+  - קובץ `firestore.rules` עם חוקי אבטחה מקיפים
+  - הגנה ברמת משתמש - כל משתמש רואה רק את הנתונים שלו
+  - מניעת גישה לא מורשית לכל הסוגים: timers, globalStats, deletedTimers, resetLogs, recordBreaks
+  - מדריך מפורט ב-`FIRESTORE_RULES.md`
+
+#### ⚡ ביצועים ו-Stability
+- **תיקון Race Condition ב-SyncService**
+  - שימוש ב-`Promise.all` למניעת race conditions
+  - טיפול נכון בבדיקות אסינכרוניות של Firebase readiness
+  - שיפור אמינות הסנכרון
+  
+- **Debounce ל-updateGlobalStats**
+  - הפחתת כתיבות ל-AsyncStorage ולFirebase
+  - עדכון רק כל 5 שניות במקום כל שנייה
+  - עדכון רק אם יש שינוי ממשי בנתונים
+  - שיפור משמעותי בביצועים ובאריכות סוללה
+
+- **תיקון Memory Leak ב-HomeScreen**
+  - שימוש ב-useRef למניעת re-creation של intervals
+  - interval נוצר רק פעם אחת במקום בכל render
+  - שיפור צריכת זיכרון ויציבות האפליקציה
+
+#### 💪 Error Handling משופר
+- **Error Recovery ב-TimerCard**
+  - הצגת הודעות שגיאה ידידותיות למשתמש
+  - אפשרות לניסיון חוזר במקרה של כשל
+  - fallback מתאים בכל מצב
+  - שיפור חווית המשתמש במצבי שגיאה
+
+### 📦 תלויות חדשות
+- `date-fns` - חישובי תאריכים מדויקים
+- `uuid` - ייצור IDs בטוחים
+- `@types/uuid` - TypeScript types ל-uuid
+
+### 🔄 שינויים פורצי תאימות
+- **שדה חדש ב-RecordBreak**: נוסף שדה `improvement` שמציין את גודל השיפור בשיא
+  - הוגדר בכל מקום שנוצר RecordBreak
+  - מחושב אוטומטית: `newRecord - oldRecord`
+
+---
+
 ## [2.0.5] - 2024-11-22
 
 ### ✨ שיפורים גדולים במסך הגדרות

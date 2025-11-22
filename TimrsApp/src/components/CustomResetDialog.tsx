@@ -120,6 +120,7 @@ export const CustomResetDialog: React.FC<CustomResetDialogProps> = ({
     setAmount('');
     setReason('');
     setSelectedMood(null);
+    onClose();
   };
 
   const isValid = amount && !isNaN(parseInt(amount, 10)) && parseInt(amount, 10) > 0 && reason.trim() && selectedMood !== null;

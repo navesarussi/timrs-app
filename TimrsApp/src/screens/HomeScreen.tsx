@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,11 @@ export const HomeScreen: React.FC = () => {
   const [editingTimer, setEditingTimer] = useState<Timer | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   
+  // Refs for debouncing and preventing memory leaks
+  const lastUpdateTime = useRef<number>(0);
+  const updateDebounceMs = 5000; // עדכון רק כל 5 שניות
+  const updateGlobalStatsRef = useRef<() => Promise<void>>();
+  
 
   // טעינת הטיימרים והסטטיסטיקות בהתחלה
   useEffect(() => {
@@ -43,27 +48,51 @@ export const HomeScreen: React.FC = () => {
   const updateGlobalStats = useCallback(async () => {
     if (!globalStats) return;
     
+    // Debounce - עדכן רק אם עבר מספיק זמן מהעדכון האחרון
+    const now = Date.now();
+    if (now - lastUpdateTime.current < updateDebounceMs) {
+      return;
+    }
+    
     try {
       // מעדכן את הסטריק הגלובלי
       const updatedStats = GlobalStatsService.updateGlobalStreak(globalStats);
       const syncedStats = GlobalStatsService.syncStatsWithTimers(updatedStats, timers);
       
-      await StorageService.saveGlobalStats(syncedStats);
-      setGlobalStats(syncedStats);
+      // בדוק אם יש שינוי ממשי לפני שמירה
+      const hasChanged = 
+        syncedStats.currentStreak !== globalStats.currentStreak ||
+        syncedStats.bestStreak !== globalStats.bestStreak ||
+        syncedStats.totalResets !== globalStats.totalResets;
+      
+      if (hasChanged) {
+        await StorageService.saveGlobalStats(syncedStats);
+        setGlobalStats(syncedStats);
+        lastUpdateTime.current = now;
+      }
     } catch (error) {
       console.error('Error updating global stats:', error);
     }
   }, [globalStats, timers]);
 
-  // עדכון אוטומטי כל שנייה
+  // עדכון ה-ref בכל פעם ש-updateGlobalStats משתנה
+  useEffect(() => {
+    updateGlobalStatsRef.current = updateGlobalStats;
+  }, [updateGlobalStats]);
+
+  // עדכון אוטומטי כל שנייה - ללא תלות ב-updateGlobalStats
+  // זה מונע יצירת intervals רבים
   useEffect(() => {
     const interval = setInterval(() => {
       setRefreshKey(prev => prev + 1);
-      updateGlobalStats();
+      // קריאה דרך ה-ref כדי למנוע re-creation של ה-interval
+      if (updateGlobalStatsRef.current) {
+        updateGlobalStatsRef.current();
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [updateGlobalStats]);
+  }, []); // dependencies ריקים - ה-interval נוצר רק פעם אחת
 
   const loadTimers = async () => {
     try {

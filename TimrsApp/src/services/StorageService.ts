@@ -212,6 +212,7 @@ export class StorageService {
       await FirebaseService.deleteDeletedTimer(deletedTimer.id);
       
       // מוסיף חזרה לטיימרים פעילים
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const {deletedAt, finalValue, ...timer} = deletedTimer;
       await this.addTimer(timer);
     } catch (error) {

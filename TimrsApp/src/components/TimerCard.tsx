@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import {Timer, ResetLog, RecordBreak} from '../types';
+import {Timer, ResetLog} from '../types';
 import {TimerService} from '../services/TimerService';
 import {StorageService} from '../services/StorageService';
 import {CustomResetDialog} from './CustomResetDialog';
+import {TimerDetailsModal} from './TimerDetailsModal';
+import {v4 as uuidv4} from 'uuid';
 
 interface TimerCardProps {
   timer: Timer;
@@ -29,7 +31,7 @@ const TimerCardComponent: React.FC<TimerCardProps> = ({
   onShowRecordBreaks,
 }) => {
   const [showResetDialog, setShowResetDialog] = useState(false);
-  const [previousBestStreak, setPreviousBestStreak] = useState(timer.bestStreak);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   
   const currentValue = TimerService.calculateElapsedTime(timer);
   const currentStreak = TimerService.calculateCurrentStreak(timer);
@@ -37,63 +39,26 @@ const TimerCardComponent: React.FC<TimerCardProps> = ({
   const smartStreakDisplay = TimerService.getSmartTimeDisplay(currentStreak, timer.timeUnit);
   const smartBestDisplay = TimerService.getSmartTimeDisplay(timer.bestStreak, timer.timeUnit);
 
-  // בדיקה אם נשבר שיא
-  useEffect(() => {
-    const checkRecordBreak = async () => {
-      if (currentStreak > previousBestStreak && currentStreak > timer.bestStreak) {
-        // נשבר שיא!
-        const recordBreak: RecordBreak = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          timerId: timer.id,
-          timestamp: Date.now(),
-          oldRecord: previousBestStreak,
-          newRecord: currentStreak,
-          isGlobalRecord: false,
-          context: `הגיע ל-${smartStreakDisplay}`,
-        };
-        
-        try {
-          await StorageService.saveRecordBreak(recordBreak);
-          setPreviousBestStreak(currentStreak);
-          
-          // עדכון הטיימר עם השיא החדש
-          const updatedTimer = {
-            ...timer,
-            bestStreak: currentStreak,
-          };
-          onUpdate(updatedTimer);
-        } catch (error) {
-          console.error('Error saving record break:', error);
-        }
-      }
-    };
-    
-    checkRecordBreak();
-  }, [currentStreak]);
-
   const handleCustomReset = async (amount: number, reason: string, mood: number) => {
-    const currentValue = TimerService.calculateElapsedTime(timer);
+    const resetValue = TimerService.calculateElapsedTime(timer);
     
-    // עדכון הטיימר עם הכמות שנבחרה
     const updatedTimer = {...timer, customResetAmount: amount};
     const {timer: resetTimer, recordBreak} = TimerService.customReset(updatedTimer);
     
-    // שמירת הלוג
     const resetLog: ResetLog = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: uuidv4(),
       timerId: timer.id,
       timestamp: Date.now(),
       amountReduced: amount,
       reason: reason,
       mood: mood,
-      valueBeforeReset: currentValue,
-      valueAfterReset: Math.max(0, currentValue - amount),
+      valueBeforeReset: resetValue,
+      valueAfterReset: Math.max(0, resetValue - amount),
     };
     
     try {
       await StorageService.saveResetLog(resetLog);
       
-      // שמירת שבירת שיא אם היתה
       if (recordBreak) {
         await StorageService.saveRecordBreak(recordBreak);
         Alert.alert(
@@ -104,7 +69,6 @@ const TimerCardComponent: React.FC<TimerCardProps> = ({
       }
       
       onUpdate(resetTimer);
-      setShowResetDialog(false);
     } catch (error) {
       console.error('Error saving reset log:', error);
       Alert.alert('שגיאה', 'לא הצלחנו לשמור את הלוג');
@@ -112,7 +76,7 @@ const TimerCardComponent: React.FC<TimerCardProps> = ({
   };
 
   const handleFullReset = useCallback(async () => {
-    const currentValue = TimerService.calculateElapsedTime(timer);
+    const resetValue = TimerService.calculateElapsedTime(timer);
     
     Alert.alert(
       'איפוס מלא',
@@ -127,13 +91,13 @@ const TimerCardComponent: React.FC<TimerCardProps> = ({
             
             // שמירת לוג איפוס מלא
             const resetLog: ResetLog = {
-              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              id: uuidv4(),
               timerId: timer.id,
               timestamp: Date.now(),
-              amountReduced: currentValue,
+              amountReduced: resetValue,
               reason: 'איפוס מלא',
-              mood: 3, // ניטרלי
-              valueBeforeReset: currentValue,
+              mood: 3,
+              valueBeforeReset: resetValue,
               valueAfterReset: 0,
             };
             
@@ -178,12 +142,19 @@ const TimerCardComponent: React.FC<TimerCardProps> = ({
     setShowResetDialog(prev => !prev);
   }, []);
 
+  const handleOpenDetails = useCallback(() => {
+    setShowDetailsModal(true);
+  }, []);
+
+  const handleCloseDetails = useCallback(() => {
+    setShowDetailsModal(false);
+  }, []);
+
   return (
     <View style={styles.card}>
       <TouchableOpacity 
         style={styles.cardHeader}
-        onLongPress={handleDelete}
-        onPress={handleEdit}
+        onPress={handleOpenDetails}
       >
         <Text style={styles.timerName}>{timer.name}</Text>
         <Text style={styles.smartDisplay}>{smartDisplay}</Text>
@@ -232,25 +203,25 @@ const TimerCardComponent: React.FC<TimerCardProps> = ({
         onClose={handleToggleDialog}
         onConfirm={handleCustomReset}
       />
+
+      {/* מודל פרטי טיימר */}
+      <TimerDetailsModal
+        visible={showDetailsModal}
+        timer={timer}
+        onClose={handleCloseDetails}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onFullReset={handleFullReset}
+        onCustomReset={handleToggleDialog}
+        onShowResetHistory={handleShowHistory}
+        onShowRecordBreaks={() => onShowRecordBreaks(timer.id, timer.name)}
+      />
     </View>
   );
 };
 
-// Memoize the component
-export const TimerCard = React.memo(TimerCardComponent, (prevProps, nextProps) => {
-  // Custom comparison - only re-render if relevant props changed
-  return (
-    prevProps.timer.id === nextProps.timer.id &&
-    prevProps.timer.name === nextProps.timer.name &&
-    prevProps.timer.startDate === nextProps.timer.startDate &&
-    prevProps.timer.currentValue === nextProps.timer.currentValue &&
-    prevProps.timer.currentStreak === nextProps.timer.currentStreak &&
-    prevProps.timer.bestStreak === nextProps.timer.bestStreak &&
-    prevProps.timer.resetCount === nextProps.timer.resetCount &&
-    prevProps.timer.timeUnit === nextProps.timer.timeUnit &&
-    prevProps.timer.customResetAmount === nextProps.timer.customResetAmount
-  );
-});
+// Export without memoization to allow real-time updates
+export const TimerCard = TimerCardComponent;
 
 const styles = StyleSheet.create({
   card: {

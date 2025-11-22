@@ -18,6 +18,7 @@ import {
   SyncStatus,
 } from '../types';
 import {ErrorHandler, ErrorType} from '../utils/ErrorHandler';
+import {v4 as uuidv4} from 'uuid';
 
 type SyncListener = (status: SyncStatus) => void;
 
@@ -129,7 +130,7 @@ class SyncServiceClass {
   private async addToQueue(item: Omit<SyncQueueItem, 'id' | 'timestamp' | 'retryCount'>): Promise<void> {
     const queueItem: SyncQueueItem = {
       ...item,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: uuidv4(),
       timestamp: Date.now(),
       retryCount: 0,
     };
@@ -140,15 +141,24 @@ class SyncServiceClass {
     console.log('[SyncService] Added to queue:', queueItem.type, queueItem.collection);
 
     // אם אונליין וFirebase מוכן - נסה לסנכרן מיד
+    // משתמשים ב-Promise.all כדי למנוע race condition
     if (NetworkService.isOnline() && !this.isSyncing && FirebaseService.isEnabled()) {
-      // בדיקה אם יש user ID
-      const userId = await FirebaseService.getUserId();
-      if (userId) {
-        this.processQueue().catch(error => {
-          console.error('[SyncService] Failed to process queue:', error);
-        });
-      } else {
-        console.log('[SyncService] No user ID yet, queue will be processed later');
+      try {
+        // בדיקה אסינכרונית עם טיפול נכון ב-race condition
+        const [isReady, userId] = await Promise.all([
+          FirebaseService.isReady(),
+          FirebaseService.getUserId()
+        ]);
+        
+        if (isReady && userId) {
+          this.processQueue().catch(error => {
+            console.error('[SyncService] Failed to process queue:', error);
+          });
+        } else {
+          console.log('[SyncService] Firebase not ready or no user ID, queue will be processed later');
+        }
+      } catch (error) {
+        console.error('[SyncService] Error checking Firebase readiness:', error);
       }
     }
   }

@@ -1,0 +1,8 @@
+# Keystore configuration - NEVER commit!
+keystore.properties
+
+# Build outputs
+build/
+.gradle/
+local.properties
+
