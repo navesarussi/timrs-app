@@ -73,3 +73,53 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# ==================================
+# Sensitive Files - DO NOT COMMIT
+# ==================================
+
+# Firebase configuration files (contain API keys)
+google-services.json
+GoogleService-Info.plist
+
+# Keystore files (for Android signing)
+*.keystore
+!debug.keystore
+keystore.properties
+android/keystore.properties
+*.jks
+
+# APK and AAB files (build artifacts)
+*.apk
+*.aab
+
+# Release builds
+**/outputs/
+android/app/build/
+
+# Temporary documentation files
+ACTIVATE_FIREBASE.md
+FIREBASE_FIX.md
+FIREBASE_SETUP.md
+FIRESTORE_RULES.md
+FIX_NOW.md
+FIX_RULES.md
+CODE_REVIEW_SUMMARY.md
+STATUS_CHECK.md
+STATUS.md
+SUMMARY_FIX.md
+TEST_CONNECTION.md
+PHONE_DEBUG.md
+QUICK_TEST.md
+JAVA_SETUP.md
+START_HERE.md
+QUICKSTART.md
+PROJECT_SUMMARY.md
+SETUP.md
+NEXT_STEPS.txt
+QUICK_FIX.txt
+RELEASE_KEYSTORE_INFO.txt
+SHA1_FINGERPRINT.txt
+
+# Shell scripts (might contain sensitive info)
+*.sh

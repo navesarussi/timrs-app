@@ -24,7 +24,7 @@ import {formatRelativeDate} from '../utils/dateUtils';
 import {v4 as uuidv4} from 'uuid';
 import {Platform} from 'react-native';
 
-const APP_VERSION = '2.2.2';
+const APP_VERSION = '2.3.0';
 
 interface SettingsScreenProps {
   visible: boolean;

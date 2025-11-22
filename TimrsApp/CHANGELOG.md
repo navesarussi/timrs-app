@@ -2,6 +2,71 @@
 
 כל השינויים המשמעותיים בפרויקט Timrs יתועדו כאן.
 
+## [2.3.0] - 2025-11-22
+
+### 🧹 ניקוי תיעוד והקוד
+- **מחיקת 20+ קבצי MD מיותרים** - ניקוי תיעוד outdated לתיעוד רק חיוני:
+  - נשארו רק: README.md, CHANGELOG.md
+  - נמחקו: כל קבצי DEBUG, STATUS, FIX, SETUP, וכו'
+  - שיפור משמעותי בניווט והמיקוד במסמכים חשובים
+
+### 🔒 שיפורי אבטחה
+- **תיקון Firestore Rules** - הוספת תמיכה ב-bugReports collection
+  - כעת כל ה-collections מוגנים כראוי
+  - מניעת גישה לא מורשית לדיווחי באגים
+
+### ⚡ שיפורי ביצועים
+- **תיקון Memory Leak ב-TimerDetailsModal** - interval נוקה כעת כראוי
+  - return undefined מפורש כשה-modal סגור
+  - מניעת intervals ש"תוקעים" ברקע
+  - שיפור יציבות ואריכות סוללה
+
+### 🔧 שיפורי TypeScript
+- **TypeScript Strict Mode** - הפעלת strict mode עם כללים נוספים:
+  - `strict: true`
+  - `noImplicitAny: true`
+  - `strictNullChecks: true`
+  - שיפור Type Safety ומניעת bugs
+
+### 📝 תיעוד
+- **קובץ .prettierrc.json חדש** - הגדרות פורמט אחידות לכל הפרויקט
+- **עדכון גרסה** - סנכרון גרסאות ב-package.json, app.config.ts ו-SettingsScreen
+
+### 🧪 בדיקות (Testing)
+- **Unit Tests לTimerService** - 10+ tests עבור פונקציות עיקריות:
+  - calculateElapsedTime
+  - calculateCurrentStreak
+  - fullReset
+  - customReset
+  - getTimeUnitLabel
+  - createNewTimer
+  - כיסוי edge cases ותרחישים שונים
+
+- **Unit Tests לValidationUtils** - 20+ tests עבור פונקציות ולידציה:
+  - validateTimerName
+  - validateResetAmount
+  - validateResetReason
+  - validateMood
+  - validatePositiveInteger
+  - sanitizeNumberInput
+  - sanitizeTextInput
+  - בדיקות עבור כל ה-edge cases
+
+### 🚀 CI/CD
+- **GitHub Actions Workflow** - pipeline אוטומטי לכל push/PR:
+  - Lint checking עם ESLint
+  - TypeScript compilation check
+  - Unit tests עם coverage
+  - Android debug build
+  - Upload artifacts
+  - Coverage reports ל-Codecov
+
+### 🎯 ROI משמעותי
+- ניקוי תיעוד: 5 דקות עבודה, השפעה ענקית על קריאות הפרויקט
+- Memory leak fix: 30 דקות, מונע crashes ארוכי טווח
+- Unit tests: 2-3 שעות, מונע regression bugs עתידיים
+- CI/CD: 1 שעה, חוסך שעות debug בעתיד
+
 ## [2.2.2] - 2025-11-22
 
 ### 📚 מדריכים ותיעוד

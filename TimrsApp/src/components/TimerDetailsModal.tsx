@@ -34,17 +34,21 @@ export const TimerDetailsModal: React.FC<TimerDetailsModalProps> = ({
   onShowResetHistory,
   onShowRecordBreaks,
 }) => {
-  const [_refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   
-  // עדכון אוטומטי כל שנייה
+  // עדכון אוטומטי כל שנייה - רק כשהמודל פתוח
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      return undefined;
+    }
     
     const interval = setInterval(() => {
       setRefreshKey(prev => prev + 1);
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [visible]);
   
   const currentValue = TimerService.calculateElapsedTime(timer);

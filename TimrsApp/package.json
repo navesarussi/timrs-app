@@ -1,6 +1,6 @@
 {
   "name": "TimrsApp",
-  "version": "1.0.0",
+  "version": "2.3.0",
   "description": "אפליקציית React Native לניהול טיימרים אישיים עם סנכרון ענן ואפשרויות איפוס מתקדמות",
   "private": true,
   "scripts": {
