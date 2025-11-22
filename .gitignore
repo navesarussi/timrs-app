@@ -1,0 +1,21 @@
+# OSX
+.DS_Store
+
+# IDE
+.idea
+.vscode
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+build/
+dist/
+*.log
+
+# Temporary files
+*.tmp
+.metro-health-check*
+

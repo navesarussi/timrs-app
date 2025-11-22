@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "754075977042",
+    "project_id": "timrs-app",
+    "storage_bucket": "timrs-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754075977042:android:cf4da5a519882281f5268b",
+        "android_client_info": {
+          "package_name": "com.timrsapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHPFW8f1420s_oXX-i0NJT0TZZ4MyuW7Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+
