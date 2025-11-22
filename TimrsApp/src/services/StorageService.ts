@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Timer, GlobalStats, DeletedTimer, ResetLog, RecordBreak} from '../types';
+import {Timer, GlobalStats, DeletedTimer, ResetLog, RecordBreak, BugReport} from '../types';
 import {TimerService} from './TimerService';
 
 const STORAGE_KEY = '@timrs_timers';
@@ -7,6 +7,7 @@ const GLOBAL_STATS_KEY = '@timrs_global_stats';
 const DELETED_TIMERS_KEY = '@timrs_deleted_timers';
 const RESET_LOGS_KEY = '@timrs_reset_logs';
 const RECORD_BREAKS_KEY = '@timrs_record_breaks';
+const BUG_REPORTS_KEY = '@timrs_bug_reports';
 
 // עכב טעינת SyncService למניעת circular dependency
 let SyncServiceInstance: any = null;
@@ -74,9 +75,14 @@ export class StorageService {
       timers.push(timer);
       await this.saveTimers(timers);
       
-      // סנכרון לענן
-      const SyncService = await getSyncService();
-      await SyncService.syncTimer(timer, 'create');
+      // סנכרון לענן - לא חוסם את השמירה המקומית
+      try {
+        const SyncService = await getSyncService();
+        await SyncService.syncTimer(timer, 'create');
+      } catch (syncError) {
+        console.warn('Cloud sync failed, but local save succeeded:', syncError);
+        // לא זורקים שגיאה - הסנכרון יתבצע מאוחר יותר
+      }
     } catch (error) {
       console.error('Error adding timer:', error);
       throw error;
@@ -94,9 +100,14 @@ export class StorageService {
         timers[index] = updatedTimer;
         await this.saveTimers(timers);
         
-        // סנכרון לענן
-        const SyncService = await getSyncService();
-        await SyncService.syncTimer(updatedTimer, 'update');
+        // סנכרון לענן - לא חוסם את השמירה המקומית
+        try {
+          const SyncService = await getSyncService();
+          await SyncService.syncTimer(updatedTimer, 'update');
+        } catch (syncError) {
+          console.warn('Cloud sync failed, but local save succeeded:', syncError);
+          // לא זורקים שגיאה - הסנכרון יתבצע מאוחר יותר
+        }
       }
     } catch (error) {
       console.error('Error updating timer:', error);
@@ -121,10 +132,15 @@ export class StorageService {
         };
         await this.addToDeletedHistory(deletedTimer);
         
-        // סנכרון לענן
-        const SyncService = await getSyncService();
-        await SyncService.syncDeletedTimer(deletedTimer);
-        await SyncService.syncTimer(timerToDelete, 'delete');
+        // סנכרון לענן - לא חוסם את השמירה המקומית
+        try {
+          const SyncService = await getSyncService();
+          await SyncService.syncDeletedTimer(deletedTimer);
+          await SyncService.syncTimer(timerToDelete, 'delete');
+        } catch (syncError) {
+          console.warn('Cloud sync failed, but local save succeeded:', syncError);
+          // לא זורקים שגיאה - הסנכרון יתבצע מאוחר יותר
+        }
       }
       
       const filteredTimers = timers.filter(t => t.id !== timerId);
@@ -143,9 +159,14 @@ export class StorageService {
       const jsonValue = JSON.stringify(stats);
       await AsyncStorage.setItem(GLOBAL_STATS_KEY, jsonValue);
       
-      // סנכרון לענן
-      const SyncService = await getSyncService();
-      await SyncService.syncGlobalStats(stats);
+      // סנכרון לענן - לא חוסם את השמירה המקומית
+      try {
+        const SyncService = await getSyncService();
+        await SyncService.syncGlobalStats(stats);
+      } catch (syncError) {
+        console.warn('Cloud sync failed, but local save succeeded:', syncError);
+        // לא זורקים שגיאה - הסנכרון יתבצע מאוחר יותר
+      }
     } catch (error) {
       console.error('Error saving global stats:', error);
       throw error;
@@ -253,9 +274,14 @@ export class StorageService {
       const jsonValue = JSON.stringify(limitedLogs);
       await AsyncStorage.setItem(RESET_LOGS_KEY, jsonValue);
       
-      // סנכרון לענן
-      const SyncService = await getSyncService();
-      await SyncService.syncResetLog(resetLog);
+      // סנכרון לענן - לא חוסם את השמירה המקומית
+      try {
+        const SyncService = await getSyncService();
+        await SyncService.syncResetLog(resetLog);
+      } catch (syncError) {
+        console.warn('Cloud sync failed, but local save succeeded:', syncError);
+        // לא זורקים שגיאה - הסנכרון יתבצע מאוחר יותר
+      }
     } catch (error) {
       console.error('Error saving reset log:', error);
       throw error;
@@ -315,9 +341,14 @@ export class StorageService {
       const jsonValue = JSON.stringify(limitedRecords);
       await AsyncStorage.setItem(RECORD_BREAKS_KEY, jsonValue);
       
-      // סנכרון לענן
-      const SyncService = await getSyncService();
-      await SyncService.syncRecordBreak(recordBreak);
+      // סנכרון לענן - לא חוסם את השמירה המקומית
+      try {
+        const SyncService = await getSyncService();
+        await SyncService.syncRecordBreak(recordBreak);
+      } catch (syncError) {
+        console.warn('Cloud sync failed, but local save succeeded:', syncError);
+        // לא זורקים שגיאה - הסנכרון יתבצע מאוחר יותר
+      }
     } catch (error) {
       console.error('Error saving record break:', error);
       throw error;
@@ -360,6 +391,82 @@ export class StorageService {
     } catch (error) {
       console.error('Error loading global record breaks:', error);
       return [];
+    }
+  }
+
+  /**
+   * שומר דיווח באג חדש
+   */
+  static async saveBugReport(bugReport: BugReport): Promise<void> {
+    try {
+      const reports = await this.loadBugReports();
+      reports.unshift(bugReport);
+      
+      // שומר רק 50 אחרונים
+      const limitedReports = reports.slice(0, 50);
+      
+      const jsonValue = JSON.stringify(limitedReports);
+      await AsyncStorage.setItem(BUG_REPORTS_KEY, jsonValue);
+      
+      console.log('[StorageService] Bug report saved:', bugReport.id);
+      
+      // סנכרון לענן - לא חוסם את השמירה המקומית
+      try {
+        const SyncService = await getSyncService();
+        await SyncService.syncBugReport(bugReport);
+      } catch (syncError) {
+        console.warn('Cloud sync failed, but local save succeeded:', syncError);
+        // לא זורקים שגיאה - הסנכרון יתבצע מאוחר יותר
+      }
+    } catch (error) {
+      console.error('Error saving bug report:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * טוען את כל דיווחי הבאגים
+   */
+  static async loadBugReports(): Promise<BugReport[]> {
+    try {
+      const jsonValue = await AsyncStorage.getItem(BUG_REPORTS_KEY);
+      return jsonValue != null ? JSON.parse(jsonValue) : [];
+    } catch (error) {
+      console.error('Error loading bug reports:', error);
+      return [];
+    }
+  }
+
+  /**
+   * מחיקת דיווח באג מקומי (אחרי סנכרון מוצלח)
+   */
+  static async deleteBugReport(reportId: string): Promise<void> {
+    try {
+      const reports = await this.loadBugReports();
+      const updatedReports = reports.filter(r => r.id !== reportId);
+      await AsyncStorage.setItem(BUG_REPORTS_KEY, JSON.stringify(updatedReports));
+      console.log('[StorageService] Bug report deleted:', reportId);
+    } catch (error) {
+      console.error('Error deleting bug report:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * עדכון סטטוס דיווח באג
+   */
+  static async updateBugReportStatus(reportId: string, status: 'pending' | 'synced'): Promise<void> {
+    try {
+      const reports = await this.loadBugReports();
+      const reportIndex = reports.findIndex(r => r.id === reportId);
+      if (reportIndex !== -1) {
+        reports[reportIndex].status = status;
+        await AsyncStorage.setItem(BUG_REPORTS_KEY, JSON.stringify(reports));
+        console.log('[StorageService] Bug report status updated:', reportId, status);
+      }
+    } catch (error) {
+      console.error('Error updating bug report status:', error);
+      throw error;
     }
   }
 }

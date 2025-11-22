@@ -13,17 +13,18 @@ import {
   Modal,
   ActivityIndicator,
   TextInput,
-  Linking,
 } from 'react-native';
 import {SyncService} from '../services/SyncService';
 import {FirebaseService} from '../services/FirebaseService';
 import {NetworkService} from '../services/NetworkService';
 import {StorageService} from '../services/StorageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {SyncStatus} from '../types';
+import {SyncStatus, BugReport} from '../types';
 import {formatRelativeDate} from '../utils/dateUtils';
+import {v4 as uuidv4} from 'uuid';
+import {Platform} from 'react-native';
 
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.2';
 
 interface SettingsScreenProps {
   visible: boolean;
@@ -90,7 +91,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       await SyncService.syncAll();
       await loadData();
       Alert.alert('הצלחה', 'הסנכרון הושלם בהצלחה');
-    } catch (error) {
+    } catch {
       Alert.alert('שגיאה', 'הסנכרון נכשל. אנא נסה שוב.');
     } finally {
       setIsSyncing(false);
@@ -241,8 +242,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           message += `• טיימרים מחוקים: ${cloudData.deletedTimers}\n`;
           message += `• לוגי איפוסים: ${cloudData.resetLogs}\n`;
           message += `• שבירות שיאים: ${cloudData.recordBreaks}\n`;
+          message += `• דיווחי באגים: ${cloudData.bugReports}\n`;
           message += `• סטטיסטיקות: ${cloudData.hasGlobalStats ? 'קיים' : 'אין'}\n`;
-        } catch (err) {
+        } catch {
           message += '\n⚠️ לא הצלחתי לבדוק את הענן';
         }
       } else {
@@ -264,7 +266,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       
       <View style={styles.statusRow}>
         <Text style={styles.label}>מצב רשת:</Text>
-        <Text style={[styles.value, {color: isOnline ? '#4CAF50' : '#EF5350'}]}>
+        <Text style={[styles.value, isOnline ? styles.statusOnline : styles.statusOffline]}>
           {isOnline ? 'מקוון ✓' : 'לא מקוון ✗'}
         </Text>
       </View>
@@ -299,30 +301,77 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     </View>
   );
 
+  const handleShowUserId = () => {
+    if (firebaseStatus.userId) {
+      Alert.alert(
+        'User ID המלא',
+        firebaseStatus.userId + '\n\n' + 
+        'חפש את ה-ID הזה ב-Firebase Console:\n' +
+        'Firestore → users → [לחץ על ה-ID הזה]',
+        [
+          {text: 'סגור', style: 'cancel'},
+        ]
+      );
+    }
+  };
+
   const renderFirebaseSection = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Firebase</Text>
+      <Text style={styles.sectionTitle}>☁️ Firebase Cloud</Text>
       
       <View style={styles.statusRow}>
         <Text style={styles.label}>מצב:</Text>
-        <Text style={[styles.value, {color: firebaseStatus.enabled ? '#4CAF50' : '#999'}]}>
-          {firebaseStatus.enabled ? 'מופעל' : 'כבוי'}
+        <Text style={[styles.value, firebaseStatus.enabled ? styles.statusOnline : styles.statusDisabled]}>
+          {firebaseStatus.enabled ? 'מופעל ✓' : 'כבוי ✗'}
+        </Text>
+      </View>
+
+      <View style={styles.statusRow}>
+        <Text style={styles.label}>אותחל:</Text>
+        <Text style={[styles.value, firebaseStatus.initialized ? styles.statusOnline : styles.statusOffline]}>
+          {firebaseStatus.initialized ? 'כן ✓' : 'לא ✗'}
         </Text>
       </View>
 
       {firebaseStatus.userId && (
-        <View style={styles.statusRow}>
-          <Text style={styles.label}>User ID:</Text>
-          <Text style={[styles.value, styles.monoText]}>
-            {firebaseStatus.userId.substring(0, 8)}...
-          </Text>
-        </View>
+        <>
+          <View style={styles.statusRow}>
+            <Text style={styles.label}>User ID:</Text>
+            <Text style={[styles.value, styles.monoText]} numberOfLines={1} ellipsizeMode="middle">
+              {firebaseStatus.userId.substring(0, 8)}...{firebaseStatus.userId.substring(firebaseStatus.userId.length - 4)}
+            </Text>
+          </View>
+          
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton]}
+            onPress={handleShowUserId}>
+            <Text style={styles.buttonText}>🔍 הצג User ID המלא</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              💡 כדי לראות את הטיימרים שלך ב-Firebase Console:{'\n'}
+              1. לך ל-Firestore Database{'\n'}
+              2. לחץ על users collection{'\n'}
+              3. חפש את ה-User ID שלך{'\n'}
+              4. לחץ עליו ותראה את ה-sub-collections (timers, globalStats...)
+            </Text>
+          </View>
+        </>
       )}
 
       {!firebaseStatus.enabled && (
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            Firebase אינו מוגדר. כדי להפעיל סנכרון ענן, יש להגדיר Firebase בקובץ ההגדרות.
+            ⚠️ Firebase אינו מופעל. כדי להפעיל סנכרון ענן, יש להגדיר Firebase בקובץ ההגדרות.
+          </Text>
+        </View>
+      )}
+
+      {firebaseStatus.enabled && !firebaseStatus.userId && (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            ⚠️ Firebase מופעל אך אין משתמש מחובר. נסה לסגור ולפתוח את האפליקציה מחדש.
           </Text>
         </View>
       )}
@@ -418,22 +467,49 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     </View>
   );
 
-  const handleSubmitBugReport = () => {
+  const handleSubmitBugReport = async () => {
     if (!bugReport.trim()) {
       Alert.alert('שגיאה', 'אנא כתוב תיאור של הבאג');
       return;
     }
 
-    Alert.alert(
-      'תודה!',
-      'הדיווח נשמר. נעבוד על תיקון הבעיה בהקדם.',
-      [
-        {
-          text: 'סגור',
-          onPress: () => setBugReport(''),
-        },
-      ],
-    );
+    setIsSyncing(true);
+    try {
+      // יצירת אובייקט דיווח באג
+      const report: BugReport = {
+        id: uuidv4(),
+        description: bugReport.trim(),
+        timestamp: Date.now(),
+        appVersion: APP_VERSION,
+        deviceInfo: `${Platform.OS} ${Platform.Version}`,
+        status: 'pending',
+      };
+
+      console.log('[SettingsScreen] Saving bug report:', report.id);
+
+      // שמירה מקומית
+      await StorageService.saveBugReport(report);
+
+      console.log('[SettingsScreen] Bug report saved successfully');
+
+      // ניקוי השדה
+      setBugReport('');
+
+      Alert.alert(
+        '✅ תודה!',
+        'הדיווח נשמר בהצלחה!\n\nהדיווח נשמר מקומית ויסונכרן לענן.\nנעבוד על תיקון הבעיה בהקדם.',
+        [{text: 'סגור'}],
+      );
+    } catch (error) {
+      console.error('[SettingsScreen] Failed to save bug report:', error);
+      Alert.alert(
+        'שגיאה',
+        'לא הצלחנו לשמור את הדיווח.\nאנא נסה שוב או פנה לתמיכה.',
+        [{text: 'סגור'}],
+      );
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const renderBugReportSection = () => (
@@ -453,14 +529,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       />
       
       <TouchableOpacity
-        style={[styles.button, styles.bugReportButton, !bugReport.trim() && styles.disabledButton]}
+        style={[styles.button, styles.bugReportButton, (!bugReport.trim() || isSyncing) && styles.disabledButton]}
         onPress={handleSubmitBugReport}
-        disabled={!bugReport.trim()}>
-        <Text style={styles.buttonText}>שלח דיווח</Text>
+        disabled={!bugReport.trim() || isSyncing}>
+        {isSyncing ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.buttonText}>שלח דיווח</Text>
+        )}
       </TouchableOpacity>
       
       <Text style={styles.bugReportHint}>
-        הדיווח יישמר מקומית ויעזור לנו לשפר את האפליקציה
+        הדיווח יישמר מקומית, יסונכרן לענן, ויעזור לנו לשפר את האפליקציה
       </Text>
     </View>
   );
@@ -600,6 +680,9 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: '#4A90E2',
   },
+  secondaryButton: {
+    backgroundColor: '#7E57C2',
+  },
   infoButton: {
     backgroundColor: '#29B6F6',
   },
@@ -714,6 +797,15 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     marginTop: 8,
+  },
+  statusOnline: {
+    color: '#4CAF50',
+  },
+  statusOffline: {
+    color: '#EF5350',
+  },
+  statusDisabled: {
+    color: '#999',
   },
 });
 

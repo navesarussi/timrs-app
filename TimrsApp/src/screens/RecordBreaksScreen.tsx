@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -27,13 +27,7 @@ export const RecordBreaksScreen: React.FC<RecordBreaksScreenProps> = ({
   const [recordBreaks, setRecordBreaks] = useState<RecordBreak[]>([]);
   const [timers, setTimers] = useState<Timer[]>([]);
 
-  useEffect(() => {
-    if (visible) {
-      loadData();
-    }
-  }, [visible, timerId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const allTimers = await StorageService.loadTimers();
       setTimers(allTimers);
@@ -48,7 +42,13 @@ export const RecordBreaksScreen: React.FC<RecordBreaksScreenProps> = ({
     } catch (error) {
       console.error('Error loading record breaks:', error);
     }
-  };
+  }, [timerId]);
+
+  useEffect(() => {
+    if (visible) {
+      loadData();
+    }
+  }, [visible, loadData]);
 
   const formatDate = (timestamp: number): string => {
     const date = new Date(timestamp);

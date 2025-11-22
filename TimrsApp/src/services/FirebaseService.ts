@@ -13,6 +13,7 @@ import {
   DeletedTimer,
   ResetLog,
   RecordBreak,
+  BugReport,
 } from '../types';
 import {ErrorHandler} from '../utils/ErrorHandler';
 
@@ -44,14 +45,23 @@ class FirebaseServiceClass {
       
       // אתחול Firestore settings
       if (FirebaseConfig.firestore.persistenceEnabled) {
-        await firestore().settings({
-          persistence: true,
-          cacheSizeBytes: FirebaseConfig.firestore.cacheSizeBytes,
-        });
-        console.log('[FirebaseService] Firestore settings configured');
+        try {
+          await firestore().settings({
+            persistence: true,
+            cacheSizeBytes: FirebaseConfig.firestore.cacheSizeBytes,
+          });
+          console.log('[FirebaseService] Firestore settings configured successfully');
+          this.firestoreEnabled = true;
+        } catch (settingsError) {
+          console.error('[FirebaseService] Failed to configure Firestore settings:', settingsError);
+          // ממשיכים אבל ללא persistence
+          this.firestoreEnabled = false;
+          throw settingsError;
+        }
+      } else {
+        this.firestoreEnabled = true;
       }
 
-      this.firestoreEnabled = true;
       this.isInitialized = true;
       
       console.log('[FirebaseService] Firestore initialized');
@@ -483,13 +493,17 @@ class FirebaseServiceClass {
       const userRef = await this.getUserRef();
       console.log('[FirebaseService] Starting full data deletion...');
 
-      // מחיקת כל הטיימרים
+      // מחיקת כל הטיימרים - עם טיפול בכשלונות חלקיים
       const timersSnapshot = await userRef
         .collection(FirestoreCollections.TIMERS)
         .get();
       console.log('[FirebaseService] Deleting', timersSnapshot.size, 'timers');
       const timerDeletions = timersSnapshot.docs.map(doc => doc.ref.delete());
-      await Promise.all(timerDeletions);
+      const timerResults = await Promise.allSettled(timerDeletions);
+      const timerFailed = timerResults.filter(r => r.status === 'rejected').length;
+      if (timerFailed > 0) {
+        console.warn(`[FirebaseService] Failed to delete ${timerFailed} timers`);
+      }
 
       // מחיקת כל הטיימרים המחוקים
       const deletedTimersSnapshot = await userRef
@@ -497,7 +511,11 @@ class FirebaseServiceClass {
         .get();
       console.log('[FirebaseService] Deleting', deletedTimersSnapshot.size, 'deleted timers');
       const deletedTimerDeletions = deletedTimersSnapshot.docs.map(doc => doc.ref.delete());
-      await Promise.all(deletedTimerDeletions);
+      const deletedResults = await Promise.allSettled(deletedTimerDeletions);
+      const deletedFailed = deletedResults.filter(r => r.status === 'rejected').length;
+      if (deletedFailed > 0) {
+        console.warn(`[FirebaseService] Failed to delete ${deletedFailed} deleted timers`);
+      }
 
       // מחיקת כל לוגי האיפוסים
       const resetLogsSnapshot = await userRef
@@ -505,7 +523,11 @@ class FirebaseServiceClass {
         .get();
       console.log('[FirebaseService] Deleting', resetLogsSnapshot.size, 'reset logs');
       const resetLogDeletions = resetLogsSnapshot.docs.map(doc => doc.ref.delete());
-      await Promise.all(resetLogDeletions);
+      const resetResults = await Promise.allSettled(resetLogDeletions);
+      const resetFailed = resetResults.filter(r => r.status === 'rejected').length;
+      if (resetFailed > 0) {
+        console.warn(`[FirebaseService] Failed to delete ${resetFailed} reset logs`);
+      }
 
       // מחיקת כל שבירות השיאים
       const recordBreaksSnapshot = await userRef
@@ -513,7 +535,11 @@ class FirebaseServiceClass {
         .get();
       console.log('[FirebaseService] Deleting', recordBreaksSnapshot.size, 'record breaks');
       const recordBreakDeletions = recordBreaksSnapshot.docs.map(doc => doc.ref.delete());
-      await Promise.all(recordBreakDeletions);
+      const recordResults = await Promise.allSettled(recordBreakDeletions);
+      const recordFailed = recordResults.filter(r => r.status === 'rejected').length;
+      if (recordFailed > 0) {
+        console.warn(`[FirebaseService] Failed to delete ${recordFailed} record breaks`);
+      }
 
       // מחיקת הסטטיסטיקות הגלובליות
       await userRef
@@ -521,6 +547,14 @@ class FirebaseServiceClass {
         .doc('stats')
         .delete();
       console.log('[FirebaseService] Deleted global stats');
+
+      // מחיקת כל דיווחי הבאגים
+      const bugReportsSnapshot = await userRef
+        .collection(FirestoreCollections.BUG_REPORTS)
+        .get();
+      console.log('[FirebaseService] Deleting', bugReportsSnapshot.size, 'bug reports');
+      const bugReportDeletions = bugReportsSnapshot.docs.map(doc => doc.ref.delete());
+      await Promise.all(bugReportDeletions);
 
       console.log('[FirebaseService] ✅ All user data deleted successfully');
     } catch (error) {
@@ -530,6 +564,77 @@ class FirebaseServiceClass {
     }
   }
 
+  // ===== Bug Reports Operations =====
+
+  /**
+   * שמירת דיווח באג
+   */
+  public async saveBugReport(report: BugReport): Promise<void> {
+    if (!this.isEnabled()) return;
+
+    try {
+      const userRef = await this.getUserRef();
+      await userRef
+        .collection(FirestoreCollections.BUG_REPORTS)
+        .doc(report.id)
+        .set(report);
+      
+      console.log('[FirebaseService] Bug report saved:', report.id);
+    } catch (error) {
+      ErrorHandler.handleFirebaseError(error as Error, 'FirebaseService.saveBugReport');
+      throw error;
+    }
+  }
+
+  /**
+   * טעינת דיווחי באגים
+   */
+  public async loadBugReports(): Promise<BugReport[]> {
+    if (!this.isEnabled()) return [];
+
+    try {
+      const userRef = await this.getUserRef();
+      const snapshot = await userRef
+        .collection(FirestoreCollections.BUG_REPORTS)
+        .orderBy('timestamp', 'desc')
+        .limit(50)
+        .get();
+      
+      const reports: BugReport[] = [];
+      snapshot.forEach(doc => {
+        reports.push(doc.data() as BugReport);
+      });
+      
+      console.log('[FirebaseService] Loaded bug reports:', reports.length);
+      return reports;
+    } catch (error) {
+      ErrorHandler.handleFirebaseError(error as Error, 'FirebaseService.loadBugReports');
+      return [];
+    }
+  }
+
+  /**
+   * מחיקת דיווח באג מהענן
+   */
+  public async deleteBugReport(reportId: string): Promise<void> {
+    if (!this.isEnabled()) return;
+
+    try {
+      const userRef = await this.getUserRef();
+      await userRef
+        .collection(FirestoreCollections.BUG_REPORTS)
+        .doc(reportId)
+        .delete();
+      
+      console.log('[FirebaseService] Bug report deleted from cloud:', reportId);
+    } catch (error) {
+      ErrorHandler.handleFirebaseError(error as Error, 'FirebaseService.deleteBugReport');
+      throw error;
+    }
+  }
+
+  // ===== Utility Methods =====
+
   /**
    * קבלת מידע על כמות הנתונים של המשתמש
    */
@@ -538,6 +643,7 @@ class FirebaseServiceClass {
     deletedTimers: number;
     resetLogs: number;
     recordBreaks: number;
+    bugReports: number;
     hasGlobalStats: boolean;
   }> {
     if (!this.isEnabled()) {
@@ -546,6 +652,7 @@ class FirebaseServiceClass {
         deletedTimers: 0,
         resetLogs: 0,
         recordBreaks: 0,
+        bugReports: 0,
         hasGlobalStats: false,
       };
     }
@@ -558,12 +665,14 @@ class FirebaseServiceClass {
         deletedTimersSnapshot,
         resetLogsSnapshot,
         recordBreaksSnapshot,
+        bugReportsSnapshot,
         globalStatsDoc,
       ] = await Promise.all([
         userRef.collection(FirestoreCollections.TIMERS).get(),
         userRef.collection(FirestoreCollections.DELETED_TIMERS).get(),
         userRef.collection(FirestoreCollections.RESET_LOGS).get(),
         userRef.collection(FirestoreCollections.RECORD_BREAKS).get(),
+        userRef.collection(FirestoreCollections.BUG_REPORTS).get(),
         userRef.collection(FirestoreCollections.GLOBAL_STATS).doc('stats').get(),
       ]);
 
@@ -572,7 +681,8 @@ class FirebaseServiceClass {
         deletedTimers: deletedTimersSnapshot.size,
         resetLogs: resetLogsSnapshot.size,
         recordBreaks: recordBreaksSnapshot.size,
-        hasGlobalStats: globalStatsDoc.exists,
+        bugReports: bugReportsSnapshot.size,
+        hasGlobalStats: globalStatsDoc.exists(),
       };
     } catch (error) {
       console.error('[FirebaseService] Error getting user data count:', error);

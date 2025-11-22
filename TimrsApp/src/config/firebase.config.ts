@@ -44,6 +44,7 @@ export const FirestoreCollections = {
   DELETED_TIMERS: 'deletedTimers',
   RESET_LOGS: 'resetLogs',
   RECORD_BREAKS: 'recordBreaks',
+  BUG_REPORTS: 'bugReports',
   SYNC_QUEUE: 'syncQueue', // תור סנכרון מקומי
 } as const;
 
@@ -56,5 +57,6 @@ export const StorageKeys = {
   LAST_SYNC: '@timrs_last_sync',
   SYNC_ENABLED: '@timrs_sync_enabled',
   PENDING_SYNCS: '@timrs_pending_syncs',
+  BUG_REPORTS: '@timrs_bug_reports',
 } as const;
 

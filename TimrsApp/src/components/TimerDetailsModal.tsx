@@ -34,7 +34,7 @@ export const TimerDetailsModal: React.FC<TimerDetailsModalProps> = ({
   onShowResetHistory,
   onShowRecordBreaks,
 }) => {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [_refreshKey, setRefreshKey] = useState(0);
   
   // עדכון אוטומטי כל שנייה
   useEffect(() => {

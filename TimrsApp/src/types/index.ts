@@ -58,6 +58,15 @@ export interface RecordBreak {
   reason?: string; // סיבה אופציונלית
 }
 
+export interface BugReport {
+  id: string;
+  description: string; // תיאור הבאג
+  timestamp: number; // מתי דווח
+  appVersion: string; // גרסת האפליקציה
+  deviceInfo?: string; // מידע על המכשיר (אופציונלי)
+  status: 'pending' | 'synced'; // סטטוס הסנכרון
+}
+
 // Validation constraints
 export const ValidationRules = {
   timer: {
@@ -97,7 +106,7 @@ export interface SyncableTimer extends Timer {
 export interface SyncQueueItem {
   id: string;
   type: 'create' | 'update' | 'delete';
-  collection: 'timers' | 'globalStats' | 'deletedTimers' | 'resetLogs' | 'recordBreaks';
+  collection: 'timers' | 'globalStats' | 'deletedTimers' | 'resetLogs' | 'recordBreaks' | 'bugReports';
   data: any;
   timestamp: number;
   retryCount: number;

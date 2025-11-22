@@ -8,11 +8,10 @@ import {
   StatusBar,
   SafeAreaView,
 } from 'react-native';
-import {Timer, TimerFormData, GlobalStats, SyncStatus} from '../types';
+import {Timer, TimerFormData, GlobalStats} from '../types';
 import {StorageService} from '../services/StorageService';
 import {TimerService} from '../services/TimerService';
 import {GlobalStatsService} from '../services/GlobalStatsService';
-import {SyncService} from '../services/SyncService';
 import {TimerCard} from '../components/TimerCard';
 import {TimerForm} from '../components/TimerForm';
 import {HistoryScreen} from './HistoryScreen';
@@ -36,7 +35,7 @@ export const HomeScreen: React.FC = () => {
   // Refs for debouncing and preventing memory leaks
   const lastUpdateTime = useRef<number>(0);
   const updateDebounceMs = 5000; // עדכון רק כל 5 שניות
-  const updateGlobalStatsRef = useRef<() => Promise<void>>();
+  const updateGlobalStatsRef = useRef<(() => Promise<void>) | undefined>(undefined);
   
 
   // טעינת הטיימרים והסטטיסטיקות בהתחלה

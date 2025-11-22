@@ -2,6 +2,158 @@
 
 כל השינויים המשמעותיים בפרויקט Timrs יתועדו כאן.
 
+## [2.2.2] - 2025-11-22
+
+### 📚 מדריכים ותיעוד
+- **מדריך Firebase Console** - הוספת 3 מדריכים מקיפים להבנת מבנה הנתונים:
+  - `למה_לא_רואים_טיימרים.md` - מדריך עברית מקוצר למשתמשים
+  - `QUICK_FIREBASE_CHECK.md` - צ'קליסט מהירה לבדיקת בעיות
+  - `DEBUG_FIREBASE_CONSOLE.md` - מדריך מפורט לניפוי שגיאות
+- **הסבר מבנה Firestore** - הבנה ברורה של sub-collections והיררכיית הנתונים
+
+### ✨ שיפורי UI/UX
+- **שיפור תצוגת Firebase Status** - בSettingsScreen:
+  - הוספת אינדיקטור "אותחל" לבדיקת מצב Firebase
+  - כפתור חדש "🔍 הצג User ID המלא" להצגת ה-ID המלא
+  - הצגת User ID בפורמט קצר: `AbCd1234...XyZ9`
+  - טיפס מידע מפורט איך לנווט ב-Firebase Console
+  - אזהרות כשFirebase לא מאותחל או אין משתמש מחובר
+
+### 🛠️ כלי Debug
+- **סקריפט Debug Firebase** - `debug-firebase.sh` לניטור לוגים בזמן אמת:
+  - צבעים ללוגים (ירוק להצלחות, אדום לשגיאות)
+  - סינון אוטומטי ללוגים רלוונטיים (Firebase, Sync)
+  - זיהוי אוטומטי של אירועים קריטיים
+
+### 💡 שיפורי קוד
+- הוספת סגנון `secondaryButton` ל-SettingsScreen
+- שיפור הודעות המשוב למשתמש
+- הרחבת מידע ב-Firebase section
+
+## [2.2.1] - 2025-11-22
+
+### 🐛 תיקוני באגים קריטיים
+- **תיקון שגיאת TurboModuleRegistry באימולטור** - שגיאה "Invariant Violation: TurboMo..." בעת הוספת טיימרים
+  - הפרדה בין שמירה מקומית לסנכרון ענן
+  - מימוש אמיתי של Offline-First approach
+  - כל פעולות השמירה ב-StorageService לא נחסמות יותר על ידי כשלון סנכרון
+  - הוספת try-catch nested לכל פעולות הסנכרון ב:
+    - `addTimer`
+    - `updateTimer`
+    - `deleteTimer`
+    - `saveGlobalStats`
+    - `saveResetLog`
+    - `saveRecordBreak`
+    - `saveBugReport`
+  - הצגת אזהרה בקונסול במקום זריקת שגיאה בעת כשלון סנכרון
+  - הסנכרון יתבצע מאוחר יותר דרך תור הסנכרון
+
+### 💡 הסבר טכני
+- הבעיה הייתה שכאשר Firebase לא מאותחל כראוי (למשל באימולטור בלי הגדרות Firebase תקינות), כל ניסיון לשמור טיימר היה נכשל
+- הפתרון: שמירה מקומית תמיד מצליחה, והסנכרון לענן מתבצע ברקע ללא חסימה
+- אם הסנכרון נכשל, הפריט נשאר בתור ויסונכרן אוטומטית כשהחיבור יחזור
+
+## [2.2.0] - 2025-11-22
+
+### 🔧 כלי פיתוח
+- **מדריך Debug מקיף** - הוספת `DEBUG_GUIDE.md` עם הוראות מפורטות
+  - כלי Debug: Flipper, Chrome DevTools, React Native Debugger
+  - פקודות ADB שימושיות
+  - טיפים למציאת באגים
+  - בדיקות Firebase, AsyncStorage, Network
+- **סקריפטים חדשים ב-package.json**
+  - `android:debug` - הרצה במצב debug מפורש
+  - `android:clean` - ניקוי build
+  - `start:reset` - ניקוי cache של Metro
+  - `logs` - צפייה בלוגים מפולטרים
+  - `reverse` - חיבור פורטים למכשיר פיזי
+
+### 🐛 תיקוני באגים קריטיים
+- **תיקון אי-התאמת גרסאות** - עדכון הגרסה ב-SettingsScreen ל-2.2.0 (הייתה 2.1.0)
+- **תיקון Race Condition ב-SyncService** - נעילה מיידית של `isSyncing` למניעת סנכרון כפול
+  - הוספת try-finally block להבטחת שחרור נעילה
+  - שיפור יציבות הסנכרון
+- **שיפור טיפול בשגיאות Firebase**
+  - הוספת try-catch לאתחול Firestore settings
+  - שימוש ב-`Promise.allSettled` במקום `Promise.all` במחיקה מלאה
+  - מניעת איבוד נתונים במקרה של כשלון חלקי
+  - הודעות warning מפורטות על כשלונות
+- **שיפור UX ב-CustomResetDialog**
+  - הוספת הצגת הודעות שגיאה ידידותיות למשתמש
+  - ניקוי אוטומטי של שגיאות בעת שינוי ערכים
+  - validation משופר עם משוב מיידי
+- **תיקון TypeScript** - תיקון קריאה ל-`globalStatsDoc.exists()` (הייתה property במקום method)
+
+### ✨ שיפורים
+- **דיווח על באגים** - מערכת מלאה לדיווח על באגים במסך ההגדרות
+  - שמירה מקומית ב-AsyncStorage
+  - סנכרון אוטומטי ל-Firebase
+  - שדות מלאים: תיאור, זמן, גרסת אפליקציה, מידע מכשיר
+  - תור סנכרון עם retry mechanism
+  - עדכון אוטומטי של מצב הדיווח (pending/synced)
+  - הצגת כמות דיווחי באגים בבדיקת מצב נתונים
+  - מחיקה אוטומטית של דיווחים ישנים (שומר רק 50 אחרונים)
+
+### 🔧 שינויים טכניים
+- הוספת טיפוס `BugReport` ב-types
+- הוספת collection `bugReports` ב-Firebase
+- הוספת פונקציות ב-StorageService: `saveBugReport`, `loadBugReports`, `deleteBugReport`, `updateBugReportStatus`
+- הוספת פונקציות ב-FirebaseService: `saveBugReport`, `loadBugReports`, `deleteBugReport`
+- הוספת תמיכה ב-SyncService: `syncBugReport`
+- עדכון `getUserDataCount` להציג גם דיווחי באגים
+- עדכון `deleteAllUserData` למחוק גם דיווחי באגים
+
+## [1.0.0] - 2025-11-22 - 🎉 RELEASE APK הראשון
+
+### 🚀 הכנה לשחרור Production
+
+#### 🔐 אבטחה
+- **Release Keystore** - יצירת keystore ייעודי לחתימה על APK production
+  - SHA-1: 9C:2F:27:EC:1C:A2:61:21:7C:8E:CD:FE:55:DF:88:51:81:6F:E1:B2
+  - תוקף עד 2053
+  - signing configuration מוגדר ב-Gradle
+
+#### ⚡ אופטימיזציות
+- **ProGuard/R8 Minification** - הקטנת גודל ה-APK ואובפוסקציה
+- **Hermes Engine** - מנוע JavaScript מהיר יותר
+- **Bundle Size Optimization** - ניקוי dependencies מיותרים
+
+#### 🐛 תיקוני קוד
+- **Lint Errors** - תיקון כל שגיאות ה-ESLint
+- **TypeScript Errors** - תיקון כל שגיאות TypeScript
+- **useCallback Dependencies** - תיקון missing dependencies ב-hooks
+- **Unused Imports** - ניקוי imports מיותרים
+
+#### 📦 הגדרות
+- **Firebase Release SHA-1** - הוספת fingerprint ל-Firebase Console
+- **Firestore Rules** - חוקי אבטחה מופעלים
+- **Anonymous Auth** - מוגדר ומופעל
+
+#### 📱 Asset Verification
+- **App Name** - "האתגרים שלי"
+- **Package Name** - com.timrsapp
+- **Icons** - אייקונים בכל הרזולוציות הנדרשות
+- **Permissions** - רק INTERNET (מינימלי)
+
+#### 📝 תיעוד
+- **FIREBASE_RELEASE_SETUP.md** - הוראות הגדרת Firebase
+- **RELEASE_KEYSTORE_INFO.txt** - מידע על keystore
+- **CHANGELOG.md** - תיעוד מעודכן
+
+### 🎯 מה כלול בגרסה זו
+
+כל התכונות מגרסאות הפיתוח הקודמות:
+- ✅ סנכרון ענן עם Firebase
+- ✅ תמיכה Offline-First
+- ✅ ניהול טיימרים מותאם אישית
+- ✅ היסטוריית איפוסים עם מצב רוח
+- ✅ רישום שבירות שיאים
+- ✅ סטטיסטיקות גלובליות
+- ✅ מסך הגדרות מקיף
+- ✅ עיצוב מודרני RTL
+
+---
+
 ## [2.2.0] - 2024-11-22
 
 ### 🐛 תיקוני באגים קריטיים

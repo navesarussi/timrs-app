@@ -14,10 +14,11 @@ import {
   DeletedTimer,
   ResetLog,
   RecordBreak,
+  BugReport,
   SyncQueueItem,
   SyncStatus,
 } from '../types';
-import {ErrorHandler, ErrorType} from '../utils/ErrorHandler';
+import {ErrorHandler} from '../utils/ErrorHandler';
 import {v4 as uuidv4} from 'uuid';
 
 type SyncListener = (status: SyncStatus) => void;
@@ -141,8 +142,10 @@ class SyncServiceClass {
     console.log('[SyncService] Added to queue:', queueItem.type, queueItem.collection);
 
     // אם אונליין וFirebase מוכן - נסה לסנכרן מיד
-    // משתמשים ב-Promise.all כדי למנוע race condition
     if (NetworkService.isOnline() && !this.isSyncing && FirebaseService.isEnabled()) {
+      // נעילה מיידית למניעת race condition
+      this.isSyncing = true;
+      
       try {
         // בדיקה אסינכרונית עם טיפול נכון ב-race condition
         const [isReady, userId] = await Promise.all([
@@ -151,14 +154,16 @@ class SyncServiceClass {
         ]);
         
         if (isReady && userId) {
-          this.processQueue().catch(error => {
-            console.error('[SyncService] Failed to process queue:', error);
-          });
+          await this.processQueue();
         } else {
           console.log('[SyncService] Firebase not ready or no user ID, queue will be processed later');
         }
       } catch (error) {
         console.error('[SyncService] Error checking Firebase readiness:', error);
+        // במקרה של שגיאה, הפריט יישאר בתור לניסיון הבא
+      } finally {
+        // שחרור הנעילה תמיד, גם במקרה של שגיאה
+        this.isSyncing = false;
       }
     }
   }
@@ -289,6 +294,10 @@ class SyncServiceClass {
       case 'recordBreaks':
         await FirebaseService.saveRecordBreak(item.data as RecordBreak);
         break;
+
+      case 'bugReports':
+        await FirebaseService.saveBugReport(item.data as BugReport);
+        break;
     }
   }
 
@@ -346,6 +355,17 @@ class SyncServiceClass {
       type: 'create',
       collection: 'recordBreaks',
       data: record,
+    });
+  }
+
+  /**
+   * סנכרון דיווח באג
+   */
+  public async syncBugReport(report: BugReport): Promise<void> {
+    await this.addToQueue({
+      type: 'create',
+      collection: 'bugReports',
+      data: report,
     });
   }
 

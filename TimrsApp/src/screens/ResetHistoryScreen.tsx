@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -30,13 +30,7 @@ export const ResetHistoryScreen: React.FC<ResetHistoryScreenProps> = ({
   const [resetLogs, setResetLogs] = useState<ResetLog[]>([]);
   const [timers, setTimers] = useState<Timer[]>([]);
 
-  useEffect(() => {
-    if (visible) {
-      loadData();
-    }
-  }, [visible, timerId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       // טוען את כל הטיימרים לשם
       const allTimers = await StorageService.loadTimers();
@@ -53,7 +47,13 @@ export const ResetHistoryScreen: React.FC<ResetHistoryScreenProps> = ({
     } catch (error) {
       console.error('Error loading reset history:', error);
     }
-  };
+  }, [timerId]);
+
+  useEffect(() => {
+    if (visible) {
+      loadData();
+    }
+  }, [visible, loadData]);
 
   const formatDate = (timestamp: number): string => {
     const date = new Date(timestamp);

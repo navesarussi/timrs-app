@@ -30,12 +30,14 @@ export const CustomResetDialog: React.FC<CustomResetDialogProps> = ({
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   React.useEffect(() => {
     if (visible && timer) {
       setAmount(timer.customResetAmount.toString());
       setReason('');
       setSelectedMood(null);
+      setErrorMessage('');
     }
   }, [visible, timer]);
 
@@ -104,18 +106,24 @@ export const CustomResetDialog: React.FC<CustomResetDialogProps> = ({
   const handleConfirm = () => {
     const numAmount = parseInt(amount, 10);
     
-    if (isNaN(numAmount) || numAmount <= 0) {
+    // בדיקות validation עם הודעות מפורטות
+    if (!amount || isNaN(numAmount) || numAmount <= 0) {
+      setErrorMessage('אנא הזן כמות תקינה גדולה מ-0');
       return;
     }
     
     if (!reason.trim()) {
+      setErrorMessage('אנא הזן סיבה לאיפוס');
       return;
     }
     
     if (selectedMood === null) {
+      setErrorMessage('אנא בחר איך אתה מרגיש');
       return;
     }
 
+    // כל הולידציות עברו - ניקוי שגיאה ושליחה
+    setErrorMessage('');
     onConfirm(numAmount, reason.trim(), selectedMood);
     setAmount('');
     setReason('');
@@ -165,7 +173,10 @@ export const CustomResetDialog: React.FC<CustomResetDialogProps> = ({
             <TextInput
               style={styles.input}
               value={amount}
-              onChangeText={setAmount}
+              onChangeText={(text) => {
+                setAmount(text);
+                if (errorMessage) setErrorMessage(''); // ניקוי שגיאה בעת שינוי
+              }}
               keyboardType="numeric"
               placeholder={timer.customResetAmount.toString()}
               placeholderTextColor="#999"
@@ -180,7 +191,10 @@ export const CustomResetDialog: React.FC<CustomResetDialogProps> = ({
             <TextInput
               style={[styles.input, styles.textArea]}
               value={reason}
-              onChangeText={setReason}
+              onChangeText={(text) => {
+                setReason(text);
+                if (errorMessage) setErrorMessage(''); // ניקוי שגיאה בעת שינוי
+              }}
               placeholder="תאר את הסיבה לאיפוס..."
               placeholderTextColor="#999"
               textAlign="right"
@@ -198,13 +212,23 @@ export const CustomResetDialog: React.FC<CustomResetDialogProps> = ({
                     styles.moodButton,
                     selectedMood === index + 1 && styles.moodButtonSelected,
                   ]}
-                  onPress={() => setSelectedMood(index + 1)}>
+                  onPress={() => {
+                    setSelectedMood(index + 1);
+                    if (errorMessage) setErrorMessage(''); // ניקוי שגיאה בעת בחירה
+                  }}>
                   <Text style={styles.moodEmoji}>{emoji}</Text>
                   <Text style={styles.moodLabel}>{MOOD_LABELS[index]}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </ScrollView>
+
+          {/* הצגת שגיאה */}
+          {errorMessage ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+            </View>
+          ) : null}
 
           {/* כפתורים */}
           <View style={styles.buttonContainer}>
@@ -394,6 +418,22 @@ const styles = StyleSheet.create({
   quickButtonTextSelected: {
     color: '#FFA726',
     fontWeight: 'bold',
+  },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+    marginBottom: 8,
+  },
+  errorText: {
+    color: '#C62828',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });
 
